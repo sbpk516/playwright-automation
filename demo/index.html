@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>TaskFlow Demo</title>
+  <style>
+    body{font:16px system-ui;background:#f4f7fb;color:#172033;margin:0}main{max-width:720px;margin:64px auto;padding:32px;background:white;border-radius:16px;box-shadow:0 12px 36px #1c2b4a18}form{display:flex;gap:8px}input{flex:1;padding:12px;border:1px solid #aab4c8;border-radius:8px}button{padding:12px 18px;border:0;border-radius:8px;background:#3157d5;color:white;font-weight:700}li{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #e5e9f2}.delete{background:#b42318;padding:8px 12px}.error{color:#b42318;min-height:24px}
+  </style>
+</head>
+<body><main><h1>TaskFlow</h1><p>Small application bundled with the framework for deterministic tests.</p>
+  <form aria-label="Add task"><label for="task">New task</label><input id="task" data-testid="task-input" placeholder="Enter a task"><button>Add task</button></form>
+  <p class="error" role="alert"></p><ul aria-label="Tasks"></ul>
+</main><script>
+const list=document.querySelector('ul'),error=document.querySelector('[role=alert]'),input=document.querySelector('input');
+async function load(){const tasks=await fetch('/api/tasks').then(r=>r.json());list.innerHTML=tasks.map(t=>`<li data-testid="task-item"><span>${t.title}</span><button class="delete" data-id="${t.id}" aria-label="Delete ${t.title}">Delete</button></li>`).join('')}
+document.querySelector('form').addEventListener('submit',async e=>{e.preventDefault();error.textContent='';const r=await fetch('/api/tasks',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({title:input.value})});if(!r.ok){error.textContent=(await r.json()).error;return}input.value='';await load()});
+list.addEventListener('click',async e=>{if(!e.target.matches('.delete'))return;await fetch('/api/tasks/'+e.target.dataset.id,{method:'DELETE'});await load()});load();
+</script></body></html>
