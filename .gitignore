@@ -1,0 +1,12 @@
+node_modules/
+.next/
+__pycache__/
+.venv/
+*.pyc
+*.egg-info/
+*.db
+.env
+playwright-report/
+test-results/
+ci/vars.local.yml
+.vscode/

@@ -1,0 +1,15 @@
+resources:
+  - name: source
+    type: git
+    source:
+      uri: ((repository-uri))
+      branch: ((repository-branch))
+
+jobs:
+  - name: playwright-sanity
+    plan:
+      - get: source
+        trigger: false
+
+      - task: run-playwright-sanity
+        file: source/ci/tasks/playwright-sanity.yml

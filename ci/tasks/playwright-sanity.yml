@@ -1,0 +1,21 @@
+platform: linux
+
+image_resource:
+  type: registry-image
+  source:
+    repository: sbpk516/streamforge-playwright
+    tag: "1.61.1"
+
+inputs:
+  - name: source
+
+outputs:
+  - name: artifacts
+
+params:
+  BASE_URL: http://127.0.0.1:3000
+
+run:
+  path: bash
+  args:
+    - source/ci/scripts/run-playwright-sanity.sh

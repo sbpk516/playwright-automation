@@ -1,0 +1,24 @@
+services:
+  api:
+    build: ./apps/api
+    environment:
+      STREAMFORGE_ENV: local
+      STREAMFORGE_DB: /data/streamforge.db
+      WEB_ORIGIN: http://localhost:3000
+    ports:
+      - "8000:8000"
+    volumes:
+      - streamforge-data:/data
+  web:
+    build:
+      context: ./apps/web
+      args:
+        API_URL: http://api:8000
+    environment:
+      API_URL: http://api:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+volumes:
+  streamforge-data:
