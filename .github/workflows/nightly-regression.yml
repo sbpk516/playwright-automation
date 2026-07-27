@@ -1,0 +1,105 @@
+name: Nightly Playwright Regression
+
+on:
+  schedule:
+    - cron: '0 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    name: Shard ${{ matrix.shardIndex }} of ${{ matrix.shardTotal }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shardIndex: [1, 2, 3, 4]
+        shardTotal: [4]
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: playwright/package-lock.json
+
+      - name: Start StreamForge
+        run: docker compose up --build --detach
+
+      - name: Install test dependencies
+        working-directory: playwright
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: playwright
+        run: npx playwright install --with-deps
+
+      - name: Wait for application
+        run: |
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8000/health/ready >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose logs
+          exit 1
+
+      - name: Run regression shard
+        working-directory: playwright
+        run: >-
+          npx playwright test tests/architecture
+          --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+
+      - name: Upload blob report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v5
+        with:
+          name: blob-report-${{ matrix.shardIndex }}
+          path: playwright/blob-report/
+          retention-days: 7
+
+  merge-reports:
+    name: Merge Playwright reports
+    if: ${{ !cancelled() }}
+    needs: [regression]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: playwright/package-lock.json
+
+      - name: Install test dependencies
+        working-directory: playwright
+        run: npm ci
+
+      - name: Download shard reports
+        uses: actions/download-artifact@v5
+        with:
+          pattern: blob-report-*
+          path: playwright/all-blob-reports
+          merge-multiple: true
+
+      - name: Merge HTML report
+        working-directory: playwright
+        run: >-
+          npx playwright merge-reports
+          --reporter html
+          ./all-blob-reports
+
+      - name: Upload merged report
+        uses: actions/upload-artifact@v5
+        with:
+          name: nightly-playwright-report
+          path: playwright/playwright-report/
+          retention-days: 30

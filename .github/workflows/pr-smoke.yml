@@ -1,0 +1,67 @@
+name: PR Playwright Smoke
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-smoke-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Playwright smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: playwright/package-lock.json
+
+      - name: Start StreamForge
+        run: docker compose up --build --detach
+
+      - name: Install test dependencies
+        working-directory: playwright
+        run: npm ci
+
+      - name: Install Chromium
+        working-directory: playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Wait for application
+        run: |
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8000/health/ready >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose logs
+          exit 1
+
+      - name: Type-check framework
+        working-directory: playwright
+        run: npm run typecheck
+
+      - name: Run smoke tests
+        working-directory: playwright
+        run: npm run test:smoke
+
+      - name: Upload diagnostics
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v5
+        with:
+          name: playwright-smoke-results
+          path: |
+            playwright/playwright-report/
+            playwright/test-results/
+          retention-days: 14
