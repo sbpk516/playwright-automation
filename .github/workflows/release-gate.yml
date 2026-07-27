@@ -1,0 +1,54 @@
+name: Release Quality Gate
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-quality-gate
+  cancel-in-progress: false
+
+jobs:
+  release-gate:
+    name: Playwright release gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: staging
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: playwright/package-lock.json
+
+      - name: Install test dependencies
+        working-directory: playwright
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: playwright
+        run: npx playwright install --with-deps
+
+      - name: Run release regression
+        working-directory: playwright
+        env:
+          BASE_URL: ${{ vars.BASE_URL }}
+          API_BASE_URL: ${{ vars.API_BASE_URL }}
+          SUBSCRIBER_EMAIL: ${{ secrets.SUBSCRIBER_EMAIL }}
+          SUBSCRIBER_PASSWORD: ${{ secrets.SUBSCRIBER_PASSWORD }}
+        run: npm run test:architecture
+
+      - name: Upload release evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v5
+        with:
+          name: release-quality-evidence
+          path: |
+            playwright/playwright-report/
+            playwright/test-results/
+          retention-days: 30

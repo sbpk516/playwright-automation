@@ -8,5 +8,10 @@ __pycache__/
 .env
 playwright-report/
 test-results/
+playwright/.auth/
+blob-report*/
+all-blob-reports*/
+sharded-html-report/
+concourse-artifacts/
 ci/vars.local.yml
 .vscode/
